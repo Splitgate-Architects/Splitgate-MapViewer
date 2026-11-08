@@ -502,7 +502,7 @@
             }
 
             // --- Outlines -------------------------------------------------------
-            if (id === 'AD_SMSimEdgeOutline') return { group: 'outlines', geo: 'box', dims: [100, 100, 100], pivot: CENTER, color: COLORS.outlines, opacity: 0.9, approx: true };
+            if (id === 'AD_SMSimEdgeOutline') return { group: 'outlines', geo: 'box', dims: [100, 100, 100], pivot: [0, 1, .5], color: COLORS.outlines, opacity: 0.9, approx: true };
 
             // --- Everything else: placeholder -----------------------------------
             const isSim = id.includes('SIMCreative');
