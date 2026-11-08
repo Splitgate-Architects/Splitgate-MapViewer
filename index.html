@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Splitgate Map Viewer v0.1.0</title>
+
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- JSZip for parsing .bin files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --accent: #3b82f6;
+            --text-color: #f8fafc;
+            --muted: #94a3b8;
+            --border: #334155;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(30, 41, 59, 0.92);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            width: 310px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            backdrop-filter: blur(6px);
+        }
+        h2 { margin: 0 0 10px 0; font-size: 18px; }
+
+        .dropzone {
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            padding: 14px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            background: rgba(15, 23, 42, 0.5);
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .dropzone.dragover, .dropzone:hover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        #drop-status { line-height: 1.5; }
+
+        .filter-group {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+        .filter-group h4 {
+            margin: 0 0 10px 0;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+        }
+        .filter-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .filter-item:last-child { margin-bottom: 0; }
+        .filter-item label { display: flex; align-items: center; cursor: pointer; }
+        .filter-item input { margin-right: 8px; cursor: pointer; }
+        .swatch { width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; display: inline-block; border: 1px solid rgba(255,255,255,0.25); flex: none; }
+        .count-badge {
+            font-size: 11px;
+            background: #1e293b;
+            color: var(--muted);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        #controls-help { font-size: 11px; color: #64748b; line-height: 1.5; margin-top: 8px; }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* ---- Selection info panel (bottom right) ---- */
+        #info-panel {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            z-index: 10;
+            width: 340px;
+            max-height: 55vh;
+            overflow-y: auto;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            backdrop-filter: blur(6px);
+            padding: 14px 16px;
+            font-size: 12px;
+            display: none;
+        }
+        #info-panel.visible { display: block; }
+        #info-panel .info-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        #info-panel .asset-name { font-size: 14px; font-weight: 600; word-break: break-all; }
+        #info-panel .close-btn { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px; }
+        #info-panel .close-btn:hover { color: #fff; }
+        #info-panel .tag { display: inline-block; margin: 6px 6px 8px 0; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #1e293b; border: 1px solid var(--border); color: var(--muted); }
+        #info-panel .tag.warn { color: #fbbf24; border-color: #78591b; }
+        #info-panel table { width: 100%; border-collapse: collapse; }
+        #info-panel td { padding: 3px 0; vertical-align: top; }
+        #info-panel td:first-child { color: #64748b; width: 82px; padding-right: 8px; white-space: nowrap; }
+        #info-panel td:last-child { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11.5px; word-break: break-all; }
+        #info-panel details { margin-top: 8px; }
+        #info-panel summary { cursor: pointer; color: var(--accent); font-size: 11px; }
+        #info-panel pre { margin: 6px 0 0 0; padding: 8px; background: rgba(15,23,42,0.7); border-radius: 6px; font-size: 11px; max-height: 160px; overflow: auto; color: #cbd5e1; }
+        #info-panel button.copy { margin-top: 8px; background: #1e293b; color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; }
+        #info-panel button.copy:hover { border-color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h2>SG Map Viewer <span style="font-size:12px; color:#3b82f6;">v0.1.0</span></h2>
+
+        <div class="dropzone" id="dropzone">
+            <div id="drop-status">
+                📂 Drop <b>.bin</b> or <b>World.cf1047</b><br>
+                <span style="font-size:11px; color:#64748b;">(or click to browse)</span>
+            </div>
+            <input type="file" id="file-input" style="display:none" accept=".bin,.zip,.cf1047,.json">
+        </div>
+
+        <div class="filter-group">
+            <h4>Visibility Filters</h4>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#e2e8f0"></span><input type="checkbox" id="chk-creative" checked> SIM Blocks, Ramps &amp; Wedges</label>
+                <span class="count-badge" id="cnt-creative">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#cbd5e1"></span><input type="checkbox" id="chk-primitive" checked> Standard Primitives</label>
+                <span class="count-badge" id="cnt-primitive">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#3b82f6"></span><input type="checkbox" id="chk-portal" checked> Portal Walls (Blue)</label>
+                <span class="count-badge" id="cnt-portal">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#22c55e"></span><input type="checkbox" id="chk-spawn" checked> Player Spawns (Green)</label>
+                <span class="count-badge" id="cnt-spawn">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#f97316"></span><input type="checkbox" id="chk-pad" checked> Weapon &amp; Jump Pads (Orange)</label>
+                <span class="count-badge" id="cnt-pad">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#facc15"></span><input type="checkbox" id="chk-volume"> Volumes (Yellow)</label>
+                <span class="count-badge" id="cnt-volume">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#a855f7"></span><input type="checkbox" id="chk-mode"> Objectives &amp; Hills (Purple)</label>
+                <span class="count-badge" id="cnt-mode">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:#f43f5e"></span><input type="checkbox" id="chk-outlines"> Edge Outlines</label>
+                <span class="count-badge" id="cnt-outlines">0</span>
+            </div>
+            <div class="filter-item">
+                <label><span class="swatch" style="background:transparent; border-color:#fb923c"></span><input type="checkbox" id="chk-other"> Unknown meshes (placeholder)</label>
+                <span class="count-badge" id="cnt-other">0</span>
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <h4>Display Options</h4>
+            <div class="filter-item">
+                <label><input type="checkbox" id="chk-mapcolors"> Use Map Material Colors</label>
+            </div>
+            <div class="filter-item">
+                <label><input type="checkbox" id="chk-cornerpivot" checked> Corner Pivot (SIM Grid Fix)</label>
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <h4>Camera</h4>
+            <div class="filter-item" style="display:block;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span>Move speed (WASD)</span><span class="count-badge" id="move-speed-val">1.0x</span>
+                </div>
+                <input type="range" id="move-speed" min="0.1" max="5" step="0.1" value="1" style="width:100%; margin:0;">
+            </div>
+        </div>
+
+        <div id="controls-help">
+            <b>Mouse:</b> Left: Rotate | Right: Pan | Scroll: Zoom<br>
+            <b>Keys:</b> W/A/S/D move | E / Space up | Q / C down | Shift fast<br>
+            <b>Click</b> an object to inspect it | <b>Esc</b> to deselect
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="info-panel">
+        <div class="info-head">
+            <div class="asset-name" id="info-name"></div>
+            <button class="close-btn" id="info-close" title="Deselect (Esc)">×</button>
+        </div>
+        <div id="info-tags"></div>
+        <table id="info-table"></table>
+        <details>
+            <summary>Properties (raw)</summary>
+            <pre id="info-props"></pre>
+        </details>
+        <button class="copy" id="info-copy">Copy asset name</button>
+    </div>
+
+    <script>
+        // =====================================================================
+        //  State
+        // =====================================================================
+        let lastLoadedJson = null;
+        let lastMapName = '';
+        let selected = null; // currently selected mesh
+
+        // =====================================================================
+        //  1. Three.js setup
+        // =====================================================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+
+        const gridHelper = new THREE.GridHelper(20000, 200, 0x334155, 0x1e293b);
+        scene.add(gridHelper);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(6000, 12000, 8000);
+        scene.add(dirLight);
+        const dirLight2 = new THREE.DirectionalLight(0x94a3b8, 0.3);
+        dirLight2.position.set(-6000, -4000, -8000);
+        scene.add(dirLight2);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 300000);
+        camera.position.set(0, 4500, 4500);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // ---- WASD fly controls ------------------------------------------------
+        // W/S = forward/back along the view direction, A/D = strafe, E/Space = up, Q/C = down, Shift = fast.
+        // Camera AND orbit target are moved together, so mouse orbiting keeps working from the new position.
+        const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyC', 'Space', 'ShiftLeft', 'ShiftRight'];
+        const heldKeys = new Set();
+        let moveBase = 3000;                 // units / second at speed 1x (updated to the map size on load)
+        const moveClock = new THREE.Clock();
+        const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _move = new THREE.Vector3();
+        const UP = new THREE.Vector3(0, 1, 0);
+
+        function isTypingTarget(t) {
+            return t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'file'].includes(t.type)));
+        }
+        window.addEventListener('keydown', e => {
+            if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
+            if (MOVE_KEYS.includes(e.code)) { heldKeys.add(e.code); if (!e.code.startsWith('Shift')) e.preventDefault(); }
+        });
+        window.addEventListener('keyup', e => heldKeys.delete(e.code));
+        window.addEventListener('blur', () => heldKeys.clear());
+
+        function updateFlyMovement(dt) {
+            if (!heldKeys.size) return;
+            camera.getWorldDirection(_fwd);
+            _right.crossVectors(_fwd, UP).normalize();
+            _move.set(0, 0, 0);
+            if (heldKeys.has('KeyW')) _move.add(_fwd);
+            if (heldKeys.has('KeyS')) _move.sub(_fwd);
+            if (heldKeys.has('KeyD')) _move.add(_right);
+            if (heldKeys.has('KeyA')) _move.sub(_right);
+            if (heldKeys.has('KeyE') || heldKeys.has('Space')) _move.add(UP);
+            if (heldKeys.has('KeyQ') || heldKeys.has('KeyC')) _move.sub(UP);
+            if (_move.lengthSq() === 0) return;
+            const mult = parseFloat(document.getElementById('move-speed').value) * (heldKeys.has('ShiftLeft') || heldKeys.has('ShiftRight') ? 3 : 1);
+            _move.normalize().multiplyScalar(moveBase * mult * dt);
+            camera.position.add(_move);
+            controls.target.add(_move);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateFlyMovement(Math.min(moveClock.getDelta(), 0.1));
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // =====================================================================
+        //  2. Geometry (built natively in Unreal-local space, then converted)
+        // =====================================================================
+        function toThree(v) { return [v[1], v[2], -v[0]]; }
+
+        function geoFromTris(tris) {
+            const pos = [];
+            tris.forEach(t => t.forEach(v => pos.push(...toThree(v))));
+            const g = new THREE.BufferGeometry();
+            g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            g.computeVertexNormals();
+            return g;
+        }
+        const quad = (a, b, c, d) => [[a, b, c], [a, c, d]];
+
+        function buildGeo(kind, pivot) {
+            const [px, py, pz] = pivot;
+            const P = (x, y, z) => [x - px, y - py, z - pz];
+            let tris = [];
+
+            if (kind === 'box') {
+                const v = [];
+                for (let x = 0; x <= 1; x++) for (let y = 0; y <= 1; y++) for (let z = 0; z <= 1; z++) v.push(P(x, y, z));
+                const at = (x, y, z) => v[x * 4 + y * 2 + z];
+                tris.push(...quad(at(0,0,0), at(0,1,0), at(0,1,1), at(0,0,1)));
+                tris.push(...quad(at(1,0,0), at(1,0,1), at(1,1,1), at(1,1,0)));
+                tris.push(...quad(at(0,0,0), at(0,0,1), at(1,0,1), at(1,0,0)));
+                tris.push(...quad(at(0,1,0), at(1,1,0), at(1,1,1), at(0,1,1)));
+                tris.push(...quad(at(0,0,0), at(1,0,0), at(1,1,0), at(0,1,0)));
+                tris.push(...quad(at(0,0,1), at(0,1,1), at(1,1,1), at(1,0,1)));
+            }
+            else if (kind === 'ramp') {
+                const a0 = P(0,0,0), b0 = P(1,0,0), c0 = P(1,0,1);
+                const a1 = P(0,1,0), b1 = P(1,1,0), c1 = P(1,1,1);
+                tris.push([a0, c0, b0]);                 
+                tris.push([a1, b1, c1]);                 
+                tris.push(...quad(a0, b0, b1, a1));      
+                tris.push(...quad(b0, c0, c1, b1));      
+                tris.push(...quad(a0, a1, c1, c0));      
+            }
+            else if (kind === 'wedge') {
+                const a0 = P(0,0,0), b0 = P(1,0,0), c0 = P(0,1,0);
+                const a1 = P(0,0,1), b1 = P(1,0,1), c1 = P(0,1,1);
+                tris.push([a0, c0, b0]);                 
+                tris.push([a1, b1, c1]);                 
+                tris.push(...quad(a0, b0, b1, a1));      
+                tris.push(...quad(a0, a1, c1, c0));      
+                tris.push(...quad(b0, c0, c1, b1));      
+            }
+            else if (kind === 'tetra') { // Primitive Block Ramp Angled
+                const a = P(0,0,0), b = P(1,0,0), c = P(0,1,0), d = P(0,0,1);
+                tris.push([a, d, b]); 
+                tris.push([a, c, d]); 
+                tris.push([a, b, c]); 
+                tris.push([b, d, c]); 
+            }
+            else if (kind === 'banked') { // Primitive Block Ramp Banked
+                // Square base in the XY plane (Z is UP in Unreal), apex raised above the corner (0,0).
+                // Two vertical triangle faces meet at the apex corner, two sloped faces split the square along the diagonal.
+                const a = P(0,0,0), b = P(1,0,0), c = P(1,1,0), d = P(0,1,0), t = P(0,0,1);
+                tris.push(...quad(a, d, c, b));  // bottom
+                tris.push([a, b, t]);            // vertical face y=0
+                tris.push([a, t, d]);            // vertical face x=0
+                tris.push([b, c, t]);            // sloped face
+                tris.push([c, d, t]);            // sloped face
+            }
+            return geoFromTris(tris);
+        }
+
+        const geoCache = {};
+        function getGeo(kind, pivot) {
+            if (kind === 'cyl' || kind === 'disc' || kind === 'sphere') {
+                // Round shapes are built centred; shift them so the actor origin sits at `pivot`
+                // (UE-local fractions of the bounding box) -> Three offset = (UE.y, UE.z, -UE.x)
+                const key = kind + '|' + pivot.join(',');
+                if (!geoCache[key]) {
+                    let g = kind === 'cyl'  ? new THREE.CylinderGeometry(0.5, 0.5, 1, 20)                                  // axis = UE Z
+                          : kind === 'disc' ? new THREE.CylinderGeometry(0.5, 0.5, 1, 24).rotateX(Math.PI / 2)             // axis = UE X
+                          :                   new THREE.SphereGeometry(0.5, 16, 16);
+                    g.translate(0.5 - pivot[1], 0.5 - pivot[2], -(0.5 - pivot[0]));
+                    geoCache[key] = g;
+                }
+                return geoCache[key];
+            }
+            const key = kind + '|' + pivot.join(',');
+            return geoCache[key] || (geoCache[key] = buildGeo(kind, pivot));
+        }
+        const edgeCache = new WeakMap();
+        function getEdges(geometry) {
+            if (!edgeCache.has(geometry)) edgeCache.set(geometry, new THREE.EdgesGeometry(geometry, 20));
+            return edgeCache.get(geometry);
+        }
+
+        // =====================================================================
+        //  3. Asset classification
+        // =====================================================================
+        const COLORS = {
+            creative: 0xe2e8f0, primitive: 0xcbd5e1, portal: 0x3b82f6,
+            spawn: 0x22c55e, pad: 0xf97316, volume: 0xfacc15, mode: 0xa855f7,
+            outlines: 0xf43f5e, other: 0xfb923c
+        };
+        const CORNER = [0, 0, 0], CENTER = [.5, .5, .5];
+        const GROUPS = Object.keys(COLORS);
+
+        function classifyAsset(id, props) {
+            let m;
+
+            // --- Portal walls ---------------------------------------------------
+            if ((m = id.match(/PortalWall(?:Angled)?(\d+)x(\d+)$/))) {
+                return { group: 'portal', geo: 'box', dims: [20, +m[1] * 100, +m[2] * 100], pivot: [.5, .5, 0],
+                         color: COLORS.portal, opacity: 0.85, approx: id.includes('Angled'),
+                         note: id.includes('Angled') ? 'Angled variant drawn as a straight slab' : '' };
+            }
+            if (id.includes('PortalLauncher')) {
+                const sz = (id.match(/(\d+)x(\d+)/) || [0, 6, 6]);
+                return { group: 'portal', geo: 'box', dims: [20, +sz[1] * 100, +sz[2] * 100], pivot: [.5, .5, 0],
+                         color: COLORS.portal, opacity: 0.85, approx: true, note: 'Launcher pivot / thickness guessed' };
+            }
+            if (id === 'AD_PortalWallCircularCreative') {
+                return { group: 'portal', geo: 'disc', dims: [20, 100, 100], pivot: CENTER, color: COLORS.portal, opacity: 0.85, approx: true, note: 'Pivot guessed' };
+            }
+            if (id === 'AD_PortalWallCreative') {
+                return { group: 'portal', geo: 'box', dims: [20, 100, 100], pivot: [.5, .5, 0],
+                         color: COLORS.portal, opacity: 0.85, approx: true, note: 'Pivot (bottom-centre) confirmed visually, thickness guessed' };
+            }
+
+            // --- Volumes --------------------------------------------------------
+            if (id.startsWith('AD_Volume_')) {
+                const shape = props && props.VolumeSetup && props.VolumeSetup.Shape;
+                const geo = shape === 'Sphere' ? 'sphere' : (shape === 'Cylinder' ? 'cyl' : 'box');
+                return { group: 'volume', geo, dims: [100, 100, 100], pivot: CENTER, color: COLORS.volume, opacity: 0.25, approx: true, note: 'Volume origin assumed at centre' };
+            }
+
+            // --- Gameplay markers ----------------------------------------------
+            if (id === 'AD_CreativePlayerStart') {
+                return { group: 'spawn', geo: 'sphere', dims: [100, 100, 100], pivot: CENTER, color: COLORS.spawn, opacity: 0.9, approx: true, note: 'Marker only (not the real size)' };
+            }
+            if (/WeaponPad|PowerUpPad|JumpPad/.test(id)) {
+                return { group: 'pad', geo: 'cyl', dims: [100, 100, 40], pivot: CENTER, color: COLORS.pad, opacity: 0.9, approx: true, note: 'Marker only (not the real size)' };
+            }
+            if (id.startsWith('AD_Gameplay')) {
+                const isSpawner = id.includes('Spawner');
+                return { group: 'mode', geo: isSpawner ? 'sphere' : 'box', dims: [100, 100, 100], pivot: CENTER, color: COLORS.mode,
+                         opacity: isSpawner ? 0.9 : 0.3, approx: true, note: 'Hill/zone footprint = 100 x actor scale, centred' };
+            }
+
+            // --- SIM grid blocks (corner pivot, 1 cell = 100 uu) ---------------
+            if (id === 'AD_SMSIMCreativeBlock1x1')       return { group: 'creative', geo: 'box',   dims: [100, 100, 100], pivot: CORNER, color: COLORS.creative, opacity: 1 };
+            if (id === 'AD_SMSIMCreativeBlockAngled1x1') return { group: 'creative', geo: 'wedge', dims: [100, 100, 100], pivot: CORNER, color: COLORS.creative, opacity: 1 };
+            if (id === 'AD_SMSIMCreativeRamp1x1')        return { group: 'creative', geo: 'ramp',  dims: [100, 100, 100], pivot: CORNER, color: COLORS.creative, opacity: 1 };
+            if (id === 'AD_SMSIMCreativeBlockRampBanked') return { group: 'creative', geo: 'banked', dims: [100, 100, 100], pivot: CORNER, color: COLORS.creative, opacity: 1, approx: true, note: 'Apex corner assumed at local origin' };
+            if (id === 'AD_SMSIMCreativeBlockRampAngled') return { group: 'creative', geo: 'tetra',  dims: [100, 100, 100], pivot: CORNER, color: COLORS.creative, opacity: 1, approx: true, note: 'Shape assumed to match the primitive Ramp Angled' };
+
+            // --- Standard primitives (centre pivot) ----------------------------
+            if (id.includes('SMPrimitive')) {
+                if (id.includes('Cylinder')) {
+                    return { group: 'primitive', geo: 'cyl', dims: [100, 100, 100], pivot: [1, 1, .5], color: COLORS.primitive, opacity: 1, approx: true, note: 'Origin at the XY corner of the cylinder footprint (centre = origin + half size), Z centred' };
+                }
+                if (id.includes('RampBanked')) {
+                    return { group: 'primitive', geo: 'banked', dims: [100, 100, 100], pivot: CENTER, color: COLORS.primitive, opacity: 1 };
+                }
+                if (id.includes('RampAngled')) {
+                    return { group: 'primitive', geo: 'tetra', dims: [100, 100, 100], pivot: CENTER, color: COLORS.primitive, opacity: 1 };
+                }
+                if (id.includes('Wedge') || id.includes('Ramp')) {
+                    return { group: 'primitive', geo: 'ramp', dims: [100, 100, 100], pivot: CENTER, color: COLORS.primitive, opacity: 1 };
+                }
+                if (id.includes('Angled')) {
+                    return { group: 'primitive', geo: 'wedge', dims: [100, 100, 100], pivot: CENTER, color: COLORS.primitive, opacity: 1, approx: true, note: 'Wedge orientation inferred from SIM wedge' };
+                }
+                return { group: 'primitive', geo: 'box', dims: [100, 100, 100], pivot: CENTER, color: COLORS.primitive, opacity: 1 };
+            }
+
+            // --- Outlines -------------------------------------------------------
+            if (id === 'AD_SMSimEdgeOutline') return { group: 'outlines', geo: 'box', dims: [100, 100, 100], pivot: CENTER, color: COLORS.outlines, opacity: 0.9, approx: true };
+
+            // --- Everything else: placeholder -----------------------------------
+            const isSim = id.includes('SIMCreative');
+            let dims = [100, 100, 100];
+            let note = 'Mesh size unknown - placeholder 100 uu x actor scale';
+            const sb = id.match(/SandboxBlock(\d+)x(\d+)x(\d+)/);
+            if (sb) { dims = [+sb[1] * 100, +sb[2] * 100, +sb[3] * 100]; note = 'Size parsed from the asset name'; }
+            return { group: 'other', geo: 'box', dims, pivot: isSim ? CORNER : CENTER, color: COLORS.other, opacity: 0.5,
+                     wire: true, approx: true, note: note + (isSim ? ' (SIM grid, corner pivot assumed)' : ' (centre pivot assumed)') };
+        }
+
+        // =====================================================================
+        //  4. Scene building
+        // =====================================================================
+        let mapGroup = new THREE.Group();
+        scene.add(mapGroup);
+
+        const $ = id => document.getElementById(id);
+        function visibilityState() {
+            const s = {};
+            GROUPS.forEach(g => { const el = $('chk-' + g); s[g] = el ? el.checked : true; });
+            return s;
+        }
+        function updateVisibility() {
+            const s = visibilityState();
+            mapGroup.children.forEach(mesh => {
+                const g = mesh.userData.group;
+                if (g in s) mesh.visible = s[g];
+            });
+            if (selected && !selected.visible) deselect();
+        }
+        GROUPS.forEach(g => $('chk-' + g).addEventListener('change', updateVisibility));
+        $('chk-mapcolors').addEventListener('change', reloadCurrentMap);
+        $('chk-cornerpivot').addEventListener('change', reloadCurrentMap);
+        $('move-speed').addEventListener('input', e => { $('move-speed-val').textContent = parseFloat(e.target.value).toFixed(1) + 'x'; });
+
+        function reloadCurrentMap() {
+            if (lastLoadedJson) loadMapData(lastLoadedJson, false, lastMapName);
+        }
+
+        function loadMapData(jsonString, resetCamera = true, sourceName = '') {
+            try {
+                lastLoadedJson = jsonString;
+                lastMapName = sourceName;
+                if (jsonString.charCodeAt(0) === 0xFEFF) jsonString = jsonString.slice(1); // strip BOM
+                const data = JSON.parse(jsonString);
+                const actors = (data.contents && data.contents.customActors) || [];
+
+                deselect();
+                scene.remove(mapGroup);
+                mapGroup = new THREE.Group();
+                scene.add(mapGroup);
+
+                const useMapColors = $('chk-mapcolors').checked;
+                const useCornerPivot = $('chk-cornerpivot').checked;
+
+                const counts = {};
+                GROUPS.forEach(g => counts[g] = 0);
+                let renderCount = 0;
+
+                actors.forEach((actor, index) => {
+                    const id = actor.descriptorAssetId || '';
+                    const transform = actor.transform;
+                    if (!transform) return;
+
+                    const spec = classifyAsset(id, actor.properties);
+                    counts[spec.group]++;
+                    renderCount++;
+
+                    // "Corner Pivot" switch only affects SIM-grid blocks (kept for A/B comparison)
+                    let pivot = spec.pivot;
+                    if (spec.group === 'creative' && !useCornerPivot) pivot = CENTER;
+
+                    const geometry = getGeo(spec.geo, pivot);
+
+                    let finalColor = new THREE.Color(spec.color);
+                    const mc = actor.properties && actor.properties.MaterialColor;
+                    if (useMapColors && mc && (spec.group === 'creative' || spec.group === 'primitive')) {
+                        finalColor = new THREE.Color(mc.R, mc.G, mc.B).convertLinearToSRGB(); // map colours are linear
+                    }
+
+                    const material = spec.wire
+                        ? new THREE.MeshBasicMaterial({ color: finalColor, wireframe: true, transparent: true, opacity: spec.opacity })
+                        : new THREE.MeshLambertMaterial({ color: finalColor, transparent: spec.opacity < 1.0, opacity: spec.opacity, side: THREE.DoubleSide });
+
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.userData = { group: spec.group, assetId: id, index, actor, spec, baseColor: finalColor.clone() };
+
+                    if (spec.opacity === 1.0 && spec.geo !== 'sphere' && !spec.wire) {
+                        mesh.add(new THREE.LineSegments(getEdges(geometry),
+                            new THREE.LineBasicMaterial({ color: 0x0f172a, opacity: 0.25, transparent: true })));
+                    }
+
+                    // --- UE -> Three transform ------------------------------------
+                    const t = transform.translation, s = transform.scale3D, q = transform.rotation;
+                    mesh.position.set(t.y, t.z, -t.x);
+                    mesh.scale.set(s.y * spec.dims[1], s.z * spec.dims[2], s.x * spec.dims[0]);
+                    // quaternion of a handed-ness flipping axis swap: (x,y,z,w) -> (-y,-z,x,w)  (verified)
+                    mesh.quaternion.set(-q.y, -q.z, q.x, q.w);
+
+                    mapGroup.add(mesh);
+                });
+
+                GROUPS.forEach(g => { const el = $('cnt-' + g); if (el) el.textContent = counts[g]; });
+                updateVisibility();
+
+                if (resetCamera && mapGroup.children.length > 0) {
+                    // Frame only the "real" geometry (ignore giant volumes / placeholders)
+                    const box = new THREE.Box3();
+                    mapGroup.children.forEach(m => {
+                        if (['creative', 'primitive', 'portal'].includes(m.userData.group)) box.expandByObject(m);
+                    });
+                    if (box.isEmpty()) box.setFromObject(mapGroup);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3()).length();
+                    moveBase = Math.max(500, size * 0.3);
+                    controls.target.copy(center);
+                    camera.position.set(center.x + size * 0.55, center.y + size * 0.45, center.z + size * 0.55);
+                    controls.update();
+                }
+
+                const mapName = (data.metaData && data.metaData.mapDataAssetName) || 'Custom Map';
+                setStatus(`✅ <b>${renderCount}</b> objects loaded<br><span style="font-size:11px; color:#94a3b8;">${sourceName ? sourceName + ' · ' : ''}${mapName}</span>`);
+            } catch (err) {
+                console.error(err);
+                setStatus(`<span style="color:#ef4444">Error parsing map file.</span>`);
+            }
+        }
+
+        // =====================================================================
+        //  5. Picking / selection info
+        // =====================================================================
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let downPos = null;
+
+        renderer.domElement.addEventListener('pointerdown', e => { downPos = { x: e.clientX, y: e.clientY }; });
+        renderer.domElement.addEventListener('pointerup', e => {
+            if (!downPos) return;
+            const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+            downPos = null;
+            if (moved > 5 || e.button !== 0) return; // dragging / panning, not a click
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(mapGroup.children.filter(m => m.visible), false);
+            if (hits.length) select(hits[0].object); else deselect();
+        });
+        window.addEventListener('keydown', e => { if (e.key === 'Escape') deselect(); });
+        $('info-close').addEventListener('click', deselect);
+        $('info-copy').addEventListener('click', () => {
+            if (selected) navigator.clipboard && navigator.clipboard.writeText(selected.userData.assetId);
+        });
+
+        let highlight = null;
+        function select(mesh) {
+            deselect();
+            selected = mesh;
+            // bright outline on top of everything
+            const line = new THREE.LineSegments(
+                new THREE.EdgesGeometry(mesh.geometry, 1),
+                new THREE.LineBasicMaterial({ color: 0xfde047, depthTest: false, transparent: true }));
+            line.renderOrder = 999;
+            mesh.add(line);
+            highlight = line;
+            if (mesh.material.emissive) mesh.material.emissive.setHex(0x444400);
+            showInfo(mesh);
+        }
+        function deselect() {
+            if (selected) {
+                if (highlight) { selected.remove(highlight); highlight.geometry.dispose(); highlight.material.dispose(); }
+                if (selected.material && selected.material.emissive) selected.material.emissive.setHex(0x000000);
+            }
+            selected = null; highlight = null;
+            $('info-panel').classList.remove('visible');
+        }
+
+        const GROUP_LABEL = {
+            creative: 'SIM Block', primitive: 'Primitive', portal: 'Portal Wall', spawn: 'Player Spawn', pad: 'Pad',
+            volume: 'Volume', mode: 'Objective / Hill', outlines: 'Edge Outline', other: 'Unknown mesh (placeholder)'
+        };
+        const fmt = n => (Math.round(n * 100) / 100).toString();
+        const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+        function showInfo(mesh) {
+            const { actor, spec, assetId, index } = mesh.userData;
+            const t = actor.transform, tr = t.translation, sc = t.scale3D, q = t.rotation;
+            // Unreal FQuat -> Rotator (roll / pitch / yaw in degrees)
+            const D = 180 / Math.PI;
+            const st = q.z * q.x - q.w * q.y;
+            const yawRaw = Math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)) * D;
+            let pitch, yaw = yawRaw, roll;
+            if (st < -0.4999)      { pitch = -90; roll = -yawRaw - 2 * Math.atan2(q.x, q.w) * D; }
+            else if (st > 0.4999)  { pitch = 90;  roll =  yawRaw - 2 * Math.atan2(q.x, q.w) * D; }
+            else { pitch = Math.asin(2 * st) * D; roll = Math.atan2(-2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y)) * D; }
+            const wrap = a => ((a + 180) % 360 + 360) % 360 - 180;
+            roll = wrap(roll);
+
+            $('info-name').textContent = assetId;
+            $('info-tags').innerHTML =
+                `<span class="tag">${GROUP_LABEL[spec.group]}</span>` +
+                (spec.approx ? `<span class="tag warn" title="${esc(spec.note || '')}">approximate shape${spec.note ? ': ' + esc(spec.note) : ''}</span>` : '');
+
+            const rows = [
+                ['File index', `#${index}`],
+                ['Position', `${fmt(tr.x)}, ${fmt(tr.y)}, ${fmt(tr.z)}`],
+                ['Scale', `${fmt(sc.x)}, ${fmt(sc.y)}, ${fmt(sc.z)}`],
+                ['Rot (R/P/Y)', `${fmt(roll)}°, ${fmt(pitch)}°, ${fmt(yaw)}°`],
+                ['Size (approx)', `${fmt(Math.abs(sc.x) * spec.dims[0])} x ${fmt(Math.abs(sc.y) * spec.dims[1])} x ${fmt(Math.abs(sc.z) * spec.dims[2])} uu`]
+            ];
+            if (actor.overrideLabel) rows.splice(1, 0, ['Label', esc(actor.overrideLabel)]);
+            if (actor.labelIndex !== undefined && actor.labelIndex !== null && actor.labelIndex >= 0 && !actor.overrideLabel) rows.splice(1, 0, ['Label index', actor.labelIndex]);
+            if (actor.groupIndex !== undefined && actor.groupIndex >= 0) rows.push(['Group index', actor.groupIndex]);
+            $('info-table').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+
+            const props = Object.assign({}, actor.properties);
+            delete props.OverriddenMaterialSlots; // huge, rarely useful
+            $('info-props').textContent = Object.keys(props).length ? JSON.stringify(props, null, 2) : '(none)';
+            $('info-panel').classList.add('visible');
+        }
+
+        // =====================================================================
+        //  6. File loading (drag & drop anywhere / click)
+        // =====================================================================
+        const dropzone = $('dropzone');
+        const fileInput = $('file-input');
+        function setStatus(html) { $('drop-status').innerHTML = html; }
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        ['dragenter', 'dragover'].forEach(e => window.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.add('dragover'); }));
+        ['dragleave', 'drop'].forEach(e => window.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.remove('dragover'); }));
+        window.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+        fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); fileInput.value = ''; });
+
+        async function handleFile(file) {
+            setStatus(`⏳ Reading ${esc(file.name)}...`);
+            const lower = file.name.toLowerCase();
+            const label = file.name.replace(/\.(bin|zip|cf1047|json)$/i, '');
+
+            if (lower.endsWith('.bin') || lower.endsWith('.zip')) {
+                try {
+                    const zip = await new JSZip().loadAsync(file);
+                    const entry = Object.keys(zip.files).find(p => p.toLowerCase().endsWith('.cf1047'));
+                    if (!entry) { setStatus(`<span style="color:#f59e0b">No .cf1047 found in archive.</span>`); return; }
+                    loadMapData(await zip.files[entry].async('string'), true, label);
+                } catch (err) {
+                    console.error(err);
+                    setStatus(`<span style="color:#ef4444">Failed to unzip archive.</span>`);
+                }
+            } else {
+                const reader = new FileReader();
+                reader.onload = ev => loadMapData(ev.target.result, true, label);
+                reader.readAsText(file);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,2 +1,3 @@
-# Splitgate-MapViewer
-Website | v0.1.0 | AI-generated
+# Splitgate-MapManager
+
+A browser-based WebViewer tool for viewering Splitgate Maps.
