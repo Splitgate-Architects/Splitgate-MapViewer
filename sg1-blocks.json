@@ -45,8 +45,8 @@
       "category": "Portal",
       "name": "Portal Wall",
       "sg2Target": "AD_PortalWallCreative",
-      "baseSize": [0.5, 1.1, 1.0],
-      "pivot": "bottom",
+      "baseSize": [2.0, 2.0, 2.0],
+      "pivot": "center",
       "rotOffset": [0, 0, 0]
     },
     "15": {
