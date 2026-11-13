@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "description": "Splitgate 2 / Arena Reloaded Block Definitions for 3D Viewer & Converter",
+    "unitNote": "dims in Unreal Units (cm), pivot in [0..1] local coordinates ([0,0,0] = bottom-left-back corner, [0.5,0.5,0.5] = center)"
+  },
+  "blocks": {
+    "AD_SMPrimitiveCube01":            { "group": "primitive", "geo": "box",    "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMPrimitiveWedge01":           { "group": "primitive", "geo": "ramp",   "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMPrimitiveBlockAngled01":     { "group": "primitive", "geo": "wedge",  "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMPrimitiveBlockRampAngled01": { "group": "primitive", "geo": "tetra",  "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMPrimitiveBlockRampBanked01": { "group": "primitive", "geo": "banked", "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMPrimitiveCylinder01":        { "group": "primitive", "geo": "cyl",    "dims": [100, 100, 100], "pivot": [1.0, 1.0, 0] },
+
+    "AD_SMSIMCreativeBlock1x1":        { "group": "creative",  "geo": "box",    "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMSIMCreativeBlockAngled1x1":  { "group": "creative",  "geo": "wedge",  "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMSIMCreativeRamp1x1":         { "group": "creative",  "geo": "ramp",   "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMSIMCreativeBlockRampBanked": { "group": "creative",  "geo": "banked", "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+    "AD_SMSIMCreativeBlockRampAngled": { "group": "creative",  "geo": "tetra",  "dims": [100, 100, 100], "pivot": [0, 0, 0] },
+
+    "AD_PortalWallCreative":           { "group": "portal",    "geo": "box",    "dims": [20, 100, 100],  "pivot": [0.5, 0.5, 0] },
+    "AD_PortalWallCircularCreative":   { "group": "portal",    "geo": "disc",   "dims": [20, 100, 100],  "pivot": [0.5, 0.5, 0.5] },
+    "AD_CreativePlayerStart":          { "group": "spawn",     "geo": "sphere", "dims": [100, 100, 100], "pivot": [0.5, 0.5, 0.5] },
+    "AD_CreativeWeaponPad":            { "group": "pad",       "geo": "cyl",    "dims": [100, 100, 40],  "pivot": [0.5, 0.5, 0.5] },
+    "AD_Volume_Blocking":              { "group": "volume",    "geo": "box",    "dims": [100, 100, 100], "pivot": [0.5, 0.5, 0.5] },
+    "AD_SMSimEdgeOutline":             { "group": "outlines",  "geo": "box",    "dims": [100, 100, 100], "pivot": [0, 1, 0.5] }
+  }
+}

@@ -14,6 +14,10 @@ package-lock.json
 
 .backup/
 .vscode/
+backup/
+SG1 Maps/
+SG2 Maps/
+Voxel Maps/
 
 # ╔══════════════════════════╗
 # ║ Windows                  ║

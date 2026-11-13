@@ -1,0 +1,196 @@
+{
+  "_meta": {
+    "description": "Splitgate 1 Block Dictionary",
+    "unitNote": "baseSize format is [X (Length), Y (Height), Z (Width)]. 1.0 = 200 Unreal Units (4x 50cm sub-grid) = 2.0x SG2 Primitive Scale",
+    "unitToSg2Scale": 2.0
+  },
+  "blocks": {
+    "0": {
+      "category": "Player Spawn",
+      "name": "Team 1 Initial Spawn",
+      "sg2Target": "AD_CreativePlayerStart",
+      "baseSize": [0.5, 0.5, 0.5],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "team": 0
+    },
+    "1": {
+      "category": "Player Spawn",
+      "name": "Team 2 Initial Spawn",
+      "sg2Target": "AD_CreativePlayerStart",
+      "baseSize": [0.5, 0.5, 0.5],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "team": 1
+    },
+    "208": {
+      "category": "Player Spawn",
+      "name": "Neutral Spawn A",
+      "sg2Target": "AD_CreativePlayerStart",
+      "baseSize": [0.5, 0.5, 0.5],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "team": 255
+    },
+    "209": {
+      "category": "Player Spawn",
+      "name": "Neutral Spawn B",
+      "sg2Target": "AD_CreativePlayerStart",
+      "baseSize": [0.5, 0.5, 0.5],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "team": 255
+    },
+    "29": {
+      "category": "Portal",
+      "name": "Portal Wall",
+      "sg2Target": "AD_PortalWallCreative",
+      "baseSize": [0.5, 1.1, 1.0],
+      "pivot": "bottom",
+      "rotOffset": [0, 0, 0]
+    },
+    "15": {
+      "category": "Pad",
+      "name": "Weapon Pad",
+      "sg2Target": "AD_CreativeWeaponPad",
+      "baseSize": [0.5, 0.5, 0.5],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0]
+    },
+    "192": {
+      "category": "Scalable",
+      "name": "Scalable Cube",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [1.0, 1.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.78, "G": 0.82, "B": 0.88, "A": 1.0 }
+    },
+    "205": {
+      "category": "Scalable",
+      "name": "Scalable Cylinder",
+      "sg2Target": "AD_SMPrimitiveCylinder01",
+      "baseSize": [1.0, 1.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.68, "G": 0.78, "B": 0.88, "A": 1.0 }
+    },
+    "206": {
+      "category": "Scalable",
+      "name": "Scalable Ramp",
+      "sg2Target": "AD_SMPrimitiveWedge01",
+      "baseSize": [2.0, 1.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 180],
+      "color": { "R": 0.55, "G": 0.70, "B": 0.85, "A": 1.0 }
+    },
+    "42": {
+      "category": "Block",
+      "name": "Block 2x2x2",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [1.0, 1.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.75, "G": 0.78, "B": 0.82, "A": 1.0 }
+    },
+    "43": {
+      "category": "Block",
+      "name": "Block 2x4x2",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [1.0, 2.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.75, "G": 0.78, "B": 0.82, "A": 1.0 }
+    },
+    "44": {
+      "category": "Block",
+      "name": "Block 4x2x2",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [2.0, 1.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.75, "G": 0.78, "B": 0.82, "A": 1.0 }
+    },
+    "45": {
+      "category": "Block",
+      "name": "Block 4x2x4",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [2.0, 1.0, 2.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.72, "G": 0.76, "B": 0.82, "A": 1.0 }
+    },
+    "46": {
+      "category": "Block",
+      "name": "Block 4x4x2",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [2.0, 2.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.72, "G": 0.76, "B": 0.82, "A": 1.0 }
+    },
+    "47": {
+      "category": "Block",
+      "name": "Block 4x4x4",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [2.0, 2.0, 2.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.7, "G": 0.75, "B": 0.82, "A": 1.0 }
+    },
+    "48": {
+      "category": "Block",
+      "name": "Block 8x2x2",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [4.0, 1.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.68, "G": 0.74, "B": 0.8, "A": 1.0 }
+    },
+    "49": {
+      "category": "Block",
+      "name": "Block 8x2x4",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [4.0, 1.0, 2.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.68, "G": 0.74, "B": 0.8, "A": 1.0 }
+    },
+    "50": {
+      "category": "Block",
+      "name": "Block 8x2x8",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [4.0, 1.0, 4.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.68, "G": 0.74, "B": 0.8, "A": 1.0 }
+    },
+    "51": {
+      "category": "Block",
+      "name": "Block 8x4x2",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [4.0, 2.0, 1.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.65, "G": 0.72, "B": 0.8, "A": 1.0 }
+    },
+    "52": {
+      "category": "Block",
+      "name": "Block 8x4x4",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [4.0, 2.0, 2.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.65, "G": 0.72, "B": 0.8, "A": 1.0 }
+    },
+    "53": {
+      "category": "Block",
+      "name": "Block 8x4x8",
+      "sg2Target": "AD_SMPrimitiveCube01",
+      "baseSize": [4.0, 2.0, 4.0],
+      "pivot": "center",
+      "rotOffset": [0, 0, 0],
+      "color": { "R": 0.62, "G": 0.7, "B": 0.78, "A": 1.0 }
+    }
+  }
+}
